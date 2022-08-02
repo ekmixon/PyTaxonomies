@@ -10,9 +10,6 @@ def main() -> None:
     argParser.add_argument('-a', '--all', action='store_true', help='Print all taxonomies as machine tags')
     argParser.add_argument('-l', '--local', default=None, help='Use local manifest file.')
     args = argParser.parse_args()
-    if args.local:
-        t = Taxonomies(manifest_path=args.local)
-    else:
-        t = Taxonomies()
+    t = Taxonomies(manifest_path=args.local) if args.local else Taxonomies()
     if args.all:
         print(t)

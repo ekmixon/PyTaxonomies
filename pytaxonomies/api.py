@@ -69,15 +69,14 @@ class Predicate(abc.Mapping):  # type: ignore
         if not predicate:
             if entries:
                 raise Exception('Need predicates if entries.')
-            else:
-                # We're creating a new one
-                self.expanded = None
-                self.description = None
-                self.colour = None
-                self.exclusive = None
-                self.numerical_value = None
-                self.entries: Dict[str, Entry] = {}
-                return
+            # We're creating a new one
+            self.expanded = None
+            self.description = None
+            self.colour = None
+            self.exclusive = None
+            self.numerical_value = None
+            self.entries: Dict[str, Entry] = {}
+            return
         self.predicate = predicate['value']
         self.expanded = predicate.get('expanded')
         self.description = predicate.get('description')
@@ -172,11 +171,15 @@ class Taxonomy(abc.Mapping):  # type: ignore
         if self.exclusive:
             to_return['exclusive'] = self.exclusive
         predicates = [p.to_dict() for p in self.values()]
-        entries = []
-        for p in predicates:
-            if p.get('entries') is None:
-                continue
-            entries.append({'predicate': p['value'], 'entry': [e.to_dict() for e in p.pop('entries')]})
+        entries = [
+            {
+                'predicate': p['value'],
+                'entry': [e.to_dict() for e in p.pop('entries')],
+            }
+            for p in predicates
+            if p.get('entries') is not None
+        ]
+
         to_return['predicates'] = predicates
         if entries:
             to_return['values'] = entries
@@ -202,8 +205,7 @@ class Taxonomy(abc.Mapping):  # type: ignore
         to_return = []
         for p, content in self.items():
             if content:
-                for k in content.keys():
-                    to_return.append(f'{self.name}:{p}="{k}"')
+                to_return.extend(f'{self.name}:{p}="{k}"' for k in content.keys())
             else:
                 to_return.append(f'{self.name}:{p}')
         return to_return
@@ -219,7 +221,7 @@ class Taxonomy(abc.Mapping):  # type: ignore
 
     def amount_entries(self) -> int:
         if self.has_entries():
-            return sum([len(e) for e in self.values()])
+            return sum(len(e) for e in self.values())
         else:
             return len(self.keys())
 
@@ -227,10 +229,13 @@ class Taxonomy(abc.Mapping):  # type: ignore
         to_return = []
         for p, content in self.items():
             if content:
-                for k, entry in content.items():
-                    to_return.append('{}:{}="{}"'.format(self.name, p, entry.expanded))
+                to_return.extend(
+                    f'{self.name}:{p}="{entry.expanded}"'
+                    for k, entry in content.items()
+                )
+
             else:
-                to_return.append('{}:{}'.format(self.name, p))
+                to_return.append(f'{self.name}:{p}')
         return to_return
 
 
@@ -284,7 +289,9 @@ class Taxonomies(abc.Mapping):  # type: ignore
             tax = self.loader(uri)
             self.taxonomies[t['name']] = Taxonomy(tax)
             if t['name'] != self.taxonomies[t['name']].name:
-                raise Exception("The name of the taxonomy in the manifest ({}) doesn't match with the name in the taxonomy ({})".format(t['name'], self.taxonomies[t['name']].name))
+                raise Exception(
+                    f"The name of the taxonomy in the manifest ({t['name']}) doesn't match with the name in the taxonomy ({self.taxonomies[t['name']].name})"
+                )
 
     def __getitem__(self, name: str) -> Taxonomy:
         return self.taxonomies[name]
@@ -296,10 +303,7 @@ class Taxonomies(abc.Mapping):  # type: ignore
         return len(self.taxonomies)
 
     def __str__(self) -> str:
-        to_print = ''
-        for taxonomy in self.values():
-            to_print += "{}\n\n".format(str(taxonomy))
-        return to_print
+        return ''.join(f"{str(taxonomy)}\n\n" for taxonomy in self.values())
 
     def search(self, query: str, expanded: bool=False) -> List[str]:
         query = query.lower()
@@ -311,9 +315,10 @@ class Taxonomies(abc.Mapping):  # type: ignore
                 machinetags = taxonomy.machinetags()
             for mt in machinetags:
                 entries = [e.lower() for e in re.findall('[^:="]*', mt) if e]
-                for e in entries:
-                    if e.startswith(query) or e.endswith(query):
-                        to_return.append(mt)
+                to_return.extend(
+                    mt for e in entries if e.startswith(query) or e.endswith(query)
+                )
+
         return to_return
 
     def revert_machinetag(self, machinetag: str) -> Union[Tuple[Taxonomy, Predicate, Entry], Tuple[Taxonomy, Predicate]]:

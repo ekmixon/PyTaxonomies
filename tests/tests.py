@@ -14,7 +14,7 @@ class TestPyTaxonomies(unittest.TestCase):
         self.taxonomies_offline = Taxonomies()
         self.loaded_tax = {}
         for t in self.taxonomies_offline.manifest['taxonomies']:
-            with open('{}/{}/{}'.format(self.taxonomies_offline.url, t['name'], 'machinetag.json'), 'r') as f:
+            with open(f"{self.taxonomies_offline.url}/{t['name']}/machinetag.json", 'r') as f:
                 self.loaded_tax[t['name']] = json.load(f)
 
     def test_compareOnlineOffilne(self):

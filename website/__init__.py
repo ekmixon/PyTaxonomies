@@ -59,11 +59,10 @@ def search():
     if form.validate_on_submit():
         q = request.form.get('query')
         entries = t.search(q)
-        if entries:
-            to_display = {e: t.revert_machinetag(e) for e in entries}
-            return render_template('search.html', form=form, entries=to_display)
-        else:
+        if not entries:
             return render_template('search.html', form=form, entries=None)
+        to_display = {e: t.revert_machinetag(e) for e in entries}
+        return render_template('search.html', form=form, entries=to_display)
     return render_template('search.html', form=form, entries=None)
 
 
